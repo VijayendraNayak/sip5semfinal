@@ -13,13 +13,12 @@ const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
 
 const transporter = nodemailer.createTransport({
-  host: 'http://localhost:3000',
-  service: "gmail",
-  secure: false,
+  host: 'smtp.ethereal.email',
+  port: 587,
   auth: {
-    user: EMAIL_USER,
-    pass: EMAIL_PASS,
-  },
+    user: 'pierce.ferry@ethereal.email',
+    pass: 'xkHjzGYu8CmPQrRzU6'
+  }
 });
 
 exports.placeOrder = async (req, res) => {
@@ -48,7 +47,7 @@ exports.placeOrder = async (req, res) => {
 
     // Send order confirmation email with OTP
     // sendOrderConfirmationEmail(req.user.email, newOrder, otpToken);
-   
+
 
     res.json({
       success: true,
@@ -62,90 +61,91 @@ exports.placeOrder = async (req, res) => {
 };
 
 exports.deliverOrder = async (req, res) => {
-    try {
-        const { orderId } = req.params;
-        const order = await Order.findById(orderId);
-        const userId = order.userId
-        console.log(userId);
+  try {
+    const { orderId } = req.params;
+    const order = await Order.findById(orderId);
+    const userId = order.userId
+    console.log(userId);
 
-        // Find the user's email
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ error: "User not found" });
-        }
-        const userEmail = user.email;
-
-        // Generate OTP
-        const otpToken = generateOTP();
-
-        // Send order confirmation email with OTP
-        await sendOrderConfirmationEmail(userEmail, orderId, otpToken);
-
-        // Mark the order as delivered
-        await markOrderAsDelivered(orderId, otpToken);
-
-        res.json({ success: true, message: "Order delivered successfully" });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Internal Server Error" });
+    // Find the user's email
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
     }
+    const userEmail = user.email;
+    // Generate OTP
+    const otpToken = generateOTP();
+
+    // Send order confirmation email with OTP
+    await sendOrderConfirmationEmail(userEmail, orderId, otpToken);
+
+    // Mark the order as delivered
+    await markOrderAsDelivered(orderId, otpToken);
+
+    res.json({ success: true, message: "Order delivered successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 };
 
 async function sendOrderConfirmationEmail(email, orderId, otpToken) {
-    try {
-        // Define email options 
-        const mailOptions = {
-            from: EMAIL_USER,
-            to: email,
-            subject: "Order Confirmation and OTP",
-            html: `<p>Dear customer,</p><p>Your order with ID ${orderId} has been successfully placed.</p><p>Your OTP for order confirmation is: <strong>${otpToken}</strong></p><p>Thank you for shopping with us!</p>`,
-        };
+  try {
+    // Define email options 
+    console.log(EMAIL_USER)
+    console.log(email)
+    const mailOptions = {
+      from: "vijayendranayak19@gmail.com",
+      to: email,
+      subject: "Order Confirmation and OTP",
+      html: `<p>Dear customer,</p><p>Your order with ID ${orderId} has been successfully placed.</p><p>Your OTP for order confirmation is: <strong>${otpToken}</strong></p><p>Thank you for shopping with us!</p>`,
+    };
 
-        // Send the email
-        await transporter.sendMail(mailOptions);
-    } catch (error) {
-        console.error("Error sending email:", error);
-        throw error;
-    }
+    // Send the email
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error("Error sending email:", error);
+    throw error;
+  }
 }
 
-exports.verifyOtp=async(req,res)=>{
-    try {
-      const { orderId, otp } = req.params;
-  
-      // Call a function to verify the OTP and mark the order as delivered
-      const order = await markOrderAsDelivered(orderId, otp);
-  
-      // Optionally, you can handle the response accordingly
-      res.json({ success: true, order });
-    } catch (error) {
-      console.error("Error verifying OTP:", error);
-      res.status(500).json({ error: "Internal Server Error" });
-    }
-  };
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { orderId, otp } = req.params;
+
+    // Call a function to verify the OTP and mark the order as delivered
+    const order = await markOrderAsDelivered(orderId, otp);
+
+    // Optionally, you can handle the response accordingly
+    res.json({ success: true, order });
+  } catch (error) {
+    console.error("Error verifying OTP:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
 
 async function markOrderAsDelivered(orderId, otpToken) {
-    try {
-        // Find the order by its ID and update its status to "delivered"
-        const updatedOrder = await Order.findOneAndUpdate(
-            { _id: orderId },
-            { $set: { status: "delivered", updatedAt: new Date() } },
-            { new: true }
-        );
+  try {
+    // Find the order by its ID and update its status to "delivered"
+    const updatedOrder = await Order.findOneAndUpdate(
+      { _id: orderId },
+      { $set: { status: "delivered", updatedAt: new Date() } },
+      { new: true }
+    );
 
 
-        return updatedOrder; // Return the updated order
-    } catch (error) {
-        console.error("Error marking order as delivered:", error);
-        throw error;
-    }
+    return updatedOrder; // Return the updated order
+  } catch (error) {
+    console.error("Error marking order as delivered:", error);
+    throw error;
+  }
 }
 
 const generateOTP = () => {
-    return speakeasy.totp({
-        secret: speakeasy.generateSecret({ length: 20 }).base32,
-        encoding: "base32",
-    });
+  return speakeasy.totp({
+    secret: speakeasy.generateSecret({ length: 20 }).base32,
+    encoding: "base32",
+  });
 };
 
 // // Email configuration for Nodemailer
